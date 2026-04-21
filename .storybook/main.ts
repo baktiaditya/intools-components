@@ -1,5 +1,6 @@
 // This file has been automatically migrated to valid ESM format by Storybook.
 import type { StorybookConfig } from '@storybook/react-vite';
+import react from '@vitejs/plugin-react';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'path';
 import { mergeConfig } from 'vite';
@@ -34,6 +35,14 @@ const config: StorybookConfig = {
           allow: ['..', '../..'],
         },
       },
+      plugins: [
+        react({
+          // This enables the "automatic" runtime required for custom import sources
+          jsxRuntime: 'automatic',
+          // If using Emotion, set this to '@emotion/react'
+          jsxImportSource: '@emotion/react',
+        }),
+      ],
     });
   },
 };
