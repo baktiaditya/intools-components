@@ -1,11 +1,11 @@
-import React from "react";
-import type { Args, Preview } from "@storybook/nextjs-vite";
-import { useArgs } from "storybook/preview-api";
-import { spyOn } from "storybook/test";
+import React from 'react';
+import type { Args, Preview } from '@storybook/nextjs-vite';
+import { useArgs } from 'storybook/preview-api';
+import { spyOn } from 'storybook/test';
 
 const preview: Preview = {
   beforeEach() {
-    spyOn(console, "log").mockName("console.log");
+    spyOn(console, 'log').mockName('console.log');
   },
   parameters: {
     controls: {
@@ -16,13 +16,13 @@ const preview: Preview = {
     },
     docs: {
       source: {
-        type: "code",
+        type: 'code',
       },
     },
     refs: {},
     options: {
       storySort: {
-        order: ["Components"],
+        order: ['Components'],
       },
     },
   },
