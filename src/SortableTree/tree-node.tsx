@@ -2,6 +2,7 @@ import React, { Children, cloneElement } from 'react';
 import isEqual from 'react-fast-compare';
 import clsx from 'clsx';
 import { isFunction, omit } from 'lodash-es';
+import { useDroppable } from '@dnd-kit/core';
 
 import { type InjectedTreeProps, type TreeRendererProps } from './types';
 
@@ -13,9 +14,7 @@ const TreeNodeComponent = (props: Props) => {
   const {
     canDrop = false,
     children,
-    connectDropTarget,
     draggedNode,
-    isOver,
     listIndex,
     lowerSiblingCounts,
     node: _node,
@@ -30,7 +29,12 @@ const TreeNodeComponent = (props: Props) => {
     ...otherProps
   } = omit(props, omittedProps);
 
-  const nodeRef = React.useRef<HTMLDivElement>(null);
+  const dropId = `drop-${_path.join('-')}`;
+  const { setNodeRef, isOver } = useDroppable({
+    id: dropId,
+    data: { node: _node, path: _path, treeIndex },
+  });
+
   const rowDirectionClass = rowDirection === 'rtl' ? 'rst__rtl' : undefined;
 
   // Construct the scaffold representing the structure of the tree
@@ -140,10 +144,10 @@ const TreeNodeComponent = (props: Props) => {
     calculatedRowHeight = rowHeight(treeIndex, _node, _path);
   }
 
-  return connectDropTarget(
+  return (
     <div
       {...otherProps}
-      ref={nodeRef}
+      ref={setNodeRef}
       className={clsx('rst__node', rowDirectionClass)}
       style={{ height: `${calculatedRowHeight}px` }}
     >
@@ -158,7 +162,7 @@ const TreeNodeComponent = (props: Props) => {
           });
         })}
       </div>
-    </div>,
+    </div>
   );
 };
 

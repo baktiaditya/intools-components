@@ -1,5 +1,4 @@
 import type React from 'react';
-import { type ConnectDragPreview, type ConnectDragSource, type ConnectDropTarget } from 'react-dnd';
 import { type VirtuosoHandle, type VirtuosoProps } from 'react-virtuoso';
 import { type DragDropManager } from 'dnd-core';
 
@@ -310,10 +309,8 @@ export type ReactSortableTreeProps = {
 };
 
 export type InjectedNodeRendererProps = {
-  connectDragPreview: ConnectDragPreview;
-  connectDragSource: ConnectDragSource;
-  didDrop: boolean;
-  isDragging: boolean;
+  didDrop?: boolean;
+  isDragging?: boolean;
 };
 
 export interface NodeRendererProps {
@@ -355,10 +352,8 @@ export interface NodeRendererProps {
 export type InjectedTreeProps = {
   /** @default false */
   canDrop?: boolean;
-  /** Drop target */
-  connectDropTarget: ConnectDropTarget;
   draggedNode?: TreeItem;
-  isOver: boolean;
+  isOver?: boolean;
 };
 
 export interface TreeRendererProps {

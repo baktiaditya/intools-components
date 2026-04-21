@@ -1,5 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type ConnectDragPreview, type ConnectDragSource, type ConnectDropTarget } from 'react-dnd';
+import {
+  closestCenter,
+  DndContext,
+  type DragCancelEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
 import isEqual from 'react-fast-compare';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Box } from '@chakra-ui/react';
@@ -66,26 +78,6 @@ interface InstanceProps {
   searchQuery?: string;
   treeData: TreeItem[];
 }
-
-// ─── DnD Stubs ──────────────────────────────────────────────────────────────
-// These no-op stubs satisfy the react-dnd injected prop types.
-// Phase 3 will replace them with real @dnd-kit hook integrations.
-
-const noopConnectDragSource: ConnectDragSource = ((el: any) => el) as any;
-const noopConnectDragPreview: ConnectDragPreview = ((el: any) => el) as any;
-const noopConnectDropTarget: ConnectDropTarget = ((el: any) => el) as any;
-
-const dndStubsForTreeNode: InjectedTreeProps = {
-  connectDropTarget: noopConnectDropTarget,
-  isOver: false,
-};
-
-const dndStubsForNodeContent: InjectedNodeRendererProps = {
-  connectDragSource: noopConnectDragSource,
-  connectDragPreview: noopConnectDragPreview,
-  isDragging: false,
-  didDrop: false,
-};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -513,6 +505,83 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
       ],
     );
 
+    // ── @dnd-kit Handlers ──────────────────────────────────────────────────
+    const handleDragStart = useCallback(
+      (event: DragStartEvent) => {
+        const { active } = event;
+        if (active.data.current) {
+          startDrag({ path: active.data.current.path });
+        }
+      },
+      [startDrag],
+    );
+
+    const handleDragOver = useCallback(
+      (event: DragOverEvent) => {
+        const { active, over } = event;
+        if (!over || !active.data.current || !over.data.current) return;
+
+        const draggedNode = active.data.current.node;
+        const overPath = over.data.current.path;
+        const overTreeIndex = over.data.current.treeIndex;
+
+        // Basic mapping for Phase 3 (depth calculation will be refined later)
+        const newDepth = overPath.length > 0 ? overPath.length - 1 : 0;
+
+        dragHover({
+          depth: newDepth,
+          minimumTreeIndex: overTreeIndex,
+          node: draggedNode,
+          path: active.data.current.path,
+        });
+      },
+      [dragHover],
+    );
+
+    const handleDragEnd = useCallback(
+      (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || !active.data.current || !over.data.current) {
+          endDrag(null);
+          return;
+        }
+
+        const draggedNodeObj = active.data.current.node;
+        const overPath = over.data.current.path;
+        const overTreeIndex = over.data.current.treeIndex;
+
+        // Use the depth and index we calculated during hover
+        const finalDepth = draggedDepth !== undefined ? draggedDepth : (overPath.length > 0 ? overPath.length - 1 : 0);
+        const finalTreeIndex = draggedMinimumTreeIndex !== undefined ? draggedMinimumTreeIndex : overTreeIndex;
+
+        const dropResult = {
+          depth: finalDepth,
+          minimumTreeIndex: finalTreeIndex,
+          node: draggedNodeObj,
+          path: active.data.current.path,
+          treeId,
+          treeIndex: overTreeIndex,
+        };
+
+        drop(dropResult);
+        endDrag(dropResult);
+      },
+      [draggedDepth, draggedMinimumTreeIndex, drop, endDrag, treeId],
+    );
+
+    const handleDragCancel = useCallback(
+      (_event: DragCancelEvent) => {
+        endDrag(null);
+      },
+      [endDrag],
+    );
+
+    const sensors = useSensors(
+      useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+      useSensor(TouchSensor),
+      useSensor(KeyboardSensor),
+    );
+
     // ── getDerivedStateFromProps equivalent ─────────────────────────────────
     // Runs synchronously on every render to mirror gDSFP behavior
     const instanceProps = instancePropsRef.current;
@@ -685,7 +754,6 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
             swapDepth={swapDepth}
             swapFrom={swapFrom}
             swapLength={swapLength}
-            {...dndStubsForTreeNode}
             {...sharedProps}
           >
             <NodeContentRenderer
@@ -694,7 +762,6 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
               isSearchMatch={isSearchMatch}
               parentNode={parentNode}
               toggleChildrenVisibility={toggleChildrenVisibility}
-              {...dndStubsForNodeContent}
               {...sharedProps}
               {...nodeProps}
             />
@@ -771,7 +838,6 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
         <Placeholder
           drop={drop}
           treeId={treeId}
-          {...dndStubsForTreeNode}
         >
           <PlaceholderContent />
         </Placeholder>
@@ -823,19 +889,28 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
     }
 
     return (
-      <Box
-        className={clsx('rst__tree', className, rowDirectionClass)}
-        css={[
-          nodeRendererDefaultStyle,
-          placeholderRendererDefaultStyle,
-          treeNodeStyle,
-          reactSortableTreeStyle,
-        ]}
-        data-testid={dataTestId}
-        style={containerStyle}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
-        {list}
-      </Box>
+        <Box
+          className={clsx('rst__tree', className, rowDirectionClass)}
+          css={[
+            nodeRendererDefaultStyle,
+            placeholderRendererDefaultStyle,
+            treeNodeStyle,
+            reactSortableTreeStyle,
+          ]}
+          data-testid={dataTestId}
+          style={containerStyle}
+        >
+          {list}
+        </Box>
+      </DndContext>
     );
   },
 );
