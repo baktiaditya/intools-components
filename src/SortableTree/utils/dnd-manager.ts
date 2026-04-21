@@ -133,6 +133,57 @@ export const wrapPlaceholder = (options: {
   return dropTarget(dndType, placeholderDropTarget, propInjection)(el);
 };
 
+export const getDropTargetDepth = (
+  rowAbove: FlatDataItem | undefined,
+  dropTargetPropsPathLength: number,
+  canNodeHaveChildren: (node: TreeItem) => boolean,
+): number => {
+  let dropTargetDepth = 0;
+  if (rowAbove) {
+    const { node } = rowAbove;
+    let { path } = rowAbove;
+    const aboveNodeCannotHaveChildren = !canNodeHaveChildren(node);
+    if (aboveNodeCannotHaveChildren) {
+      path = path.slice(0, -1);
+    }
+    dropTargetDepth = Math.min(path.length, dropTargetPropsPathLength);
+  }
+  return dropTargetDepth;
+};
+
+export const calculateTargetDepth = (options: {
+  direction?: 1 | -1;
+  dragOffset: number;
+  dragSourceInitialDepth: number;
+  draggedNode: TreeItem;
+  dropTargetDepth: number;
+  maxDepth?: number;
+  scaffoldBlockPxWidth: number;
+}): number => {
+  const {
+    direction = 1,
+    draggedNode,
+    dragOffset,
+    dragSourceInitialDepth,
+    dropTargetDepth,
+    maxDepth,
+    scaffoldBlockPxWidth,
+  } = options;
+
+  const blocksOffset = Math.round((direction * dragOffset) / scaffoldBlockPxWidth);
+  let targetDepth = Math.min(
+    dropTargetDepth,
+    Math.max(0, dragSourceInitialDepth + blocksOffset - 1),
+  );
+
+  if (maxDepth !== undefined) {
+    const draggedChildDepth = getDepth(draggedNode);
+    targetDepth = Math.max(0, Math.min(targetDepth, maxDepth - draggedChildDepth - 1));
+  }
+
+  return targetDepth;
+};
+
 const getTargetDepth = (options: {
   canNodeHaveChildren: Required<ReactSortableTreeProps>['canNodeHaveChildren'];
   component?: null | { node: Element };
@@ -143,20 +194,11 @@ const getTargetDepth = (options: {
 }) => {
   const { canNodeHaveChildren, component, dropTargetProps, maxDepth, monitor, treeId } = options;
 
-  let dropTargetDepth = 0;
-
-  const rowAbove = dropTargetProps.getPrevRow();
-  if (rowAbove) {
-    const { node } = rowAbove;
-    let { path } = rowAbove;
-    const aboveNodeCannotHaveChildren = !canNodeHaveChildren(node);
-    if (aboveNodeCannotHaveChildren) {
-      path = path.slice(0, -1);
-    }
-
-    // Limit the length of the path to the deepest possible
-    dropTargetDepth = Math.min(path.length, dropTargetProps.path.length);
-  }
+  const dropTargetDepth = getDropTargetDepth(
+    dropTargetProps.getPrevRow(),
+    dropTargetProps.path.length,
+    canNodeHaveChildren,
+  );
 
   let blocksOffset = 0;
   let dragSourceInitialDepth = (monitor.getItem().path || []).length;
@@ -205,6 +247,55 @@ const getTargetDepth = (options: {
   return targetDepth;
 };
 
+export const canDropLogic = (options: {
+  draggedNode: TreeItem;
+  nextParent: TreeItem | undefined;
+  nextPath: number[];
+  nextTreeIndex: number;
+  prevParent: TreeItem | undefined;
+  prevPath: number[];
+  prevTreeIndex: number;
+  rowAbove: FlatDataItem | undefined;
+  targetDepth: number;
+  treeRefCanDrop?: ReactSortableTreeProps['canDrop'];
+}): boolean => {
+  const {
+    draggedNode,
+    nextParent,
+    nextPath,
+    nextTreeIndex,
+    prevParent,
+    prevPath,
+    prevTreeIndex,
+    rowAbove,
+    targetDepth,
+    treeRefCanDrop,
+  } = options;
+
+  const abovePath = rowAbove ? rowAbove.path : [];
+  const aboveNode = rowAbove ? rowAbove.node : {};
+
+  // Cannot drop if we're adding to the children of the row above and
+  // the row above is a function
+  if (targetDepth >= abovePath.length && typeof aboveNode.children === 'function') {
+    return false;
+  }
+
+  if (typeof treeRefCanDrop === 'function') {
+    return treeRefCanDrop({
+      node: draggedNode,
+      prevPath,
+      prevParent,
+      prevTreeIndex,
+      nextPath,
+      nextParent: nextParent as TreeItem,
+      nextTreeIndex,
+    });
+  }
+
+  return true;
+};
+
 const canDrop = (options: {
   canNodeHaveChildren: Required<ReactSortableTreeProps>['canNodeHaveChildren'];
   dropTargetProps: DropTargetProps;
@@ -221,8 +312,6 @@ const canDrop = (options: {
   }
 
   const rowAbove = dropTargetProps.getPrevRow();
-  const abovePath = rowAbove ? rowAbove.path : [];
-  const aboveNode = rowAbove ? rowAbove.node : {};
   const targetDepth = getTargetDepth({
     dropTargetProps,
     monitor,
@@ -232,27 +321,20 @@ const canDrop = (options: {
     maxDepth,
   });
 
-  // Cannot drop if we're adding to the children of the row above and
-  //  the row above is a function
-  if (targetDepth >= abovePath.length && typeof aboveNode.children === 'function') {
-    return false;
-  }
+  const { node, parentNode, path, treeIndex } = monitor.getItem();
 
-  if (typeof treeRefCanDrop === 'function') {
-    const { node, parentNode, path, treeIndex } = monitor.getItem();
-
-    return treeRefCanDrop({
-      node,
-      prevPath: path,
-      prevParent: parentNode,
-      prevTreeIndex: treeIndex, // Equals -1 when dragged from external tree
-      nextPath: dropTargetProps.children.props.path,
-      nextParent: dropTargetProps.children.props.parentNode,
-      nextTreeIndex: dropTargetProps.children.props.treeIndex,
-    });
-  }
-
-  return true;
+  return canDropLogic({
+    targetDepth,
+    rowAbove,
+    treeRefCanDrop,
+    draggedNode: node,
+    prevPath: path,
+    prevParent: parentNode,
+    prevTreeIndex: treeIndex,
+    nextPath: dropTargetProps.children.props.path,
+    nextParent: dropTargetProps.children.props.parentNode,
+    nextTreeIndex: dropTargetProps.children.props.treeIndex,
+  });
 };
 
 export interface DragHoverOptions extends TreeNode, TreePath {

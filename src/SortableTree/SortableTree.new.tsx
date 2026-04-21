@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import isEqual from 'react-fast-compare';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Box } from '@chakra-ui/react';
@@ -17,23 +17,18 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import clsx from 'clsx';
-import { isFunction, isObject, memoize, omit } from 'lodash-es';
+import { memoize } from 'lodash-es';
 
 import NodeRendererDefault from './node-renderer-default';
 import PlaceholderRendererDefault from './placeholder-renderer-default';
 import TreeNode from './tree-node';
 import TreePlaceholder from './tree-placeholder';
 import {
-  type InjectedNodeRendererProps,
-  type InjectedTreeProps,
   type NodeData,
-  type NodeRendererProps,
   type PlaceholderRendererProps,
   type ReactSortableTreeProps,
   type SearchFinishCallbackParams,
   type TreeItem,
-  type TreePlaceholderProps,
-  type TreeRendererProps,
 } from './types';
 import { type AugmentedRequired, type OmitStrict } from '../utility-types';
 
@@ -42,6 +37,7 @@ import { placeholderRendererDefaultStyle } from './styles/placeholder-renderer-d
 import { reactSortableTreeStyle } from './styles/react-sortable-tree.style';
 import { treeNodeStyle } from './styles/tree-node.style';
 import { defaultGetNodeKey, defaultSearchMethod } from './utils/default-handlers';
+import { calculateTargetDepth, canDropLogic, getDropTargetDepth } from './utils/dnd-manager';
 import { type Row, slideRows } from './utils/generic-utils';
 import {
   memoizedGetDescendantCount,
@@ -223,7 +219,8 @@ function loadLazyChildren(props: PropsWithDefault, instanceProps: InstanceProps)
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortableTreeProps>(
-  (rawProps, _ref) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  (rawProps, ref) => {
     // Apply defaults
     const props = { ...defaultProps, ...rawProps } as PropsWithDefault;
 
@@ -253,6 +250,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
 
     // ── Stable IDs ─────────────────────────────────────────────────────────
     const treeId = useRef(`rst__${treeIdCounter++}`).current;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const dndType = useRef(props.dndType || treeId).current;
 
     // ── Theme-merged values ────────────────────────────────────────────────
@@ -272,6 +270,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
     );
 
     // ── canNodeHaveChildren ────────────────────────────────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const canNodeHaveChildrenFn = useCallback(
       (node: TreeItem) => {
         if (props.canNodeHaveChildren) {
@@ -300,7 +299,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
           path,
         });
       },
-      [props.onChange, props.onVisibilityToggle, props.getNodeKey],
+      [props],
     );
 
     // ── Drop handler ───────────────────────────────────────────────────────
@@ -347,7 +346,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
           nextParentNode,
         });
       },
-      [draggingTreeData, props.onChange, props.onMoveNode, props.getNodeKey],
+      [draggingTreeData, props],
     );
 
     const drop = useCallback(
@@ -383,7 +382,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
         setDraggedMinimumTreeIndex(removedTreeIndex);
         setDragging(true);
       },
-      [props.getNodeKey],
+      [props],
     );
 
     // ── dragHover ──────────────────────────────────────────────────────────
@@ -495,14 +494,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
           });
         }
       },
-      [
-        treeId,
-        draggingTreeData,
-        props.shouldCopyOnOutsideDrop,
-        props.onChange,
-        props.onMoveNode,
-        props.getNodeKey,
-      ],
+      [treeId, draggingTreeData, props],
     );
 
     // ── @dnd-kit Handlers ──────────────────────────────────────────────────
@@ -518,15 +510,48 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
 
     const handleDragOver = useCallback(
       (event: DragOverEvent) => {
-        const { active, over } = event;
+        const { active, delta, over } = event;
         if (!over || !active.data.current || !over.data.current) return;
 
         const draggedNode = active.data.current.node;
         const overPath = over.data.current.path;
         const overTreeIndex = over.data.current.treeIndex;
 
-        // Basic mapping for Phase 3 (depth calculation will be refined later)
-        const newDepth = overPath.length > 0 ? overPath.length - 1 : 0;
+        const rows = getRows({ treeData: draggingTreeData || instancePropsRef.current.treeData });
+        const rowAbove = overTreeIndex > 0 ? rows[overTreeIndex - 1] : undefined;
+        const dropTargetDepth = getDropTargetDepth(
+          rowAbove,
+          overPath.length,
+          props.canNodeHaveChildren,
+        );
+
+        const newDepth = calculateTargetDepth({
+          dragSourceInitialDepth: active.data.current.path.length,
+          dropTargetDepth,
+          dragOffset: delta.x,
+          scaffoldBlockPxWidth: props.scaffoldBlockPxWidth || 44,
+          maxDepth: props.maxDepth,
+          draggedNode,
+          direction: props.rowDirection === 'rtl' ? -1 : 1,
+        });
+
+        const overRow = rows[overTreeIndex];
+        const canDrop = canDropLogic({
+          targetDepth: newDepth,
+          rowAbove,
+          treeRefCanDrop: props.canDrop,
+          draggedNode,
+          prevPath: active.data.current.path,
+          prevParent: active.data.current.parentNode,
+          prevTreeIndex: active.data.current.treeIndex,
+          nextPath: overRow ? overRow.path : [],
+          nextParent: overRow ? overRow.parentNode : undefined,
+          nextTreeIndex: overTreeIndex,
+        });
+
+        if (!canDrop) {
+          return;
+        }
 
         dragHover({
           depth: newDepth,
@@ -535,7 +560,16 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
           path: active.data.current.path,
         });
       },
-      [dragHover],
+      [
+        dragHover,
+        draggingTreeData,
+        getRows,
+        props.canNodeHaveChildren,
+        props.scaffoldBlockPxWidth,
+        props.maxDepth,
+        props.rowDirection,
+        props.canDrop,
+      ],
     );
 
     const handleDragEnd = useCallback(
@@ -938,7 +972,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
                     isSearchFocus={false}
                     isSearchMatch={false}
                     node={draggedNode}
-                    parentNode={null}
+                    parentNode={undefined}
                     path={[]}
                     rowDirection={merged.rowDirection}
                     scaffoldBlockPxWidth={merged.scaffoldBlockPxWidth}
