@@ -1,8 +1,8 @@
 import React, { Children, cloneElement } from 'react';
 import isEqual from 'react-fast-compare';
+import { useDroppable } from '@dnd-kit/core';
 import clsx from 'clsx';
 import { isFunction, omit } from 'lodash-es';
-import { useDroppable } from '@dnd-kit/core';
 
 import { type InjectedTreeProps, type TreeRendererProps } from './types';
 
@@ -30,7 +30,7 @@ const TreeNodeComponent = (props: Props) => {
   } = omit(props, omittedProps);
 
   const dropId = `drop-${_path.join('-')}`;
-  const { setNodeRef, isOver } = useDroppable({
+  const { isOver, setNodeRef } = useDroppable({
     id: dropId,
     data: { node: _node, path: _path, treeIndex },
   });

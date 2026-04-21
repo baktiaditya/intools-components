@@ -17,6 +17,8 @@ module.exports = {
   },
   extends: [
     'eslint:recommended',
+    'plugin:import/recommended',
+    'plugin:import/typescript',
     'plugin:@typescript-eslint/recommended',
     'plugin:eslint-comments/recommended',
     'plugin:prettier/recommended',
@@ -25,7 +27,7 @@ module.exports = {
   ],
   plugins: [
     'react',
-    'import',
+    'react-hooks',
     'sort-destructure-keys',
     '@typescript-eslint',
     'typescript-sort-keys',
@@ -41,6 +43,7 @@ module.exports = {
     'import/first': 'warn',
     'import/newline-after-import': 'warn',
     'import/no-duplicates': 'warn',
+    'import/no-named-as-default': 'off',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'no-duplicate-imports': 'warn',
     'no-extra-boolean-cast': 'warn',

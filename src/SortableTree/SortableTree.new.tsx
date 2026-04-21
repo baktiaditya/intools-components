@@ -1,10 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import isEqual from 'react-fast-compare';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import { Box } from '@chakra-ui/react';
 import {
   closestCenter,
   DndContext,
   type DragCancelEvent,
   type DragEndEvent,
   type DragOverEvent,
+  DragOverlay,
   type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
@@ -12,9 +16,6 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import isEqual from 'react-fast-compare';
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
-import { Box } from '@chakra-ui/react';
 import clsx from 'clsx';
 import { isFunction, isObject, memoize, omit } from 'lodash-es';
 
@@ -122,10 +123,10 @@ function performSearch(
   expand: boolean,
   singleSearch: boolean,
 ): {
-  searchMatches: SearchFinishCallbackParams;
-  searchFocusTreeIndex?: number;
-  newInstanceProps?: Partial<InstanceProps>;
   expandedTreeData?: TreeItem[];
+  newInstanceProps?: Partial<InstanceProps>;
+  searchFocusTreeIndex?: number;
+  searchMatches: SearchFinishCallbackParams;
 } {
   const {
     getNodeKey,
@@ -405,8 +406,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
             }
 
             setDraggingTreeData((prevDraggingTreeData) => {
-              const newDraggingTreeData =
-                prevDraggingTreeData || instancePropsRef.current.treeData;
+              const newDraggingTreeData = prevDraggingTreeData || instancePropsRef.current.treeData;
 
               const addedResult = memoizedInsertNode({
                 treeData: newDraggingTreeData,
@@ -551,8 +551,10 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
         const overTreeIndex = over.data.current.treeIndex;
 
         // Use the depth and index we calculated during hover
-        const finalDepth = draggedDepth !== undefined ? draggedDepth : (overPath.length > 0 ? overPath.length - 1 : 0);
-        const finalTreeIndex = draggedMinimumTreeIndex !== undefined ? draggedMinimumTreeIndex : overTreeIndex;
+        const finalDepth =
+          draggedDepth !== undefined ? draggedDepth : overPath.length > 0 ? overPath.length - 1 : 0;
+        const finalTreeIndex =
+          draggedMinimumTreeIndex !== undefined ? draggedMinimumTreeIndex : overTreeIndex;
 
         const dropResult = {
           depth: finalDepth,
@@ -593,9 +595,9 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
     // We use a ref to batch state changes from the "derived state" logic
     // and apply them via useEffect to avoid setState-during-render issues.
     const pendingDerivedState = useRef<{
-      searchMatches?: SearchFinishCallbackParams;
-      searchFocusTreeIndex?: number;
       resetDrag?: boolean;
+      searchFocusTreeIndex?: number;
+      searchMatches?: SearchFinishCallbackParams;
     } | null>(null);
 
     if (!isTreeDataEqual) {
@@ -801,12 +803,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
       const swapTo = draggedMinimumTreeIndex;
       swapFrom = addedResult.treeIndex;
       swapLength = 1 + memoizedGetDescendantCount({ node: draggedNode });
-      rows = slideRows(
-        getRows({ treeData: addedResult.treeData }),
-        swapFrom,
-        swapTo,
-        swapLength,
-      );
+      rows = slideRows(getRows({ treeData: addedResult.treeData }), swapFrom, swapTo, swapLength);
     } else {
       rows = getRows({ treeData });
     }
@@ -833,12 +830,10 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
     if (rows.length === 0) {
       // TODO: Phase 3 will wrap this with @dnd-kit droppable
       const Placeholder = TreePlaceholder;
-      const PlaceholderContent = placeholderRenderer as React.ComponentType<PlaceholderRendererProps>;
+      const PlaceholderContent =
+        placeholderRenderer as React.ComponentType<PlaceholderRendererProps>;
       list = (
-        <Placeholder
-          drop={drop}
-          treeId={treeId}
-        >
+        <Placeholder drop={drop} treeId={treeId}>
           <PlaceholderContent />
         </Placeholder>
       );
@@ -890,12 +885,12 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
 
     return (
       <DndContext
-        sensors={sensors}
         collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragStart={handleDragStart}
+        sensors={sensors}
       >
         <Box
           className={clsx('rst__tree', className, rowDirectionClass)}
@@ -910,6 +905,62 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
         >
           {list}
         </Box>
+        <DragOverlay dropAnimation={null}>
+          {draggedNode ? (
+            <Box
+              className={clsx('rst__tree', className, rowDirectionClass)}
+              css={[
+                nodeRendererDefaultStyle,
+                placeholderRendererDefaultStyle,
+                treeNodeStyle,
+                reactSortableTreeStyle,
+              ]}
+            >
+              <div
+                className={clsx('rst__node', rowDirectionClass)}
+                style={{
+                  height:
+                    typeof merged.rowHeight === 'function'
+                      ? merged.rowHeight(draggedMinimumTreeIndex || 0, draggedNode, [])
+                      : merged.rowHeight,
+                }}
+              >
+                <div
+                  className="rst__nodeContent"
+                  style={{
+                    [merged.rowDirection === 'rtl' ? 'right' : 'left']:
+                      (draggedDepth || 0) * merged.scaffoldBlockPxWidth,
+                  }}
+                >
+                  <merged.nodeContentRenderer
+                    canDrag={false}
+                    isDragging
+                    isSearchFocus={false}
+                    isSearchMatch={false}
+                    node={draggedNode}
+                    parentNode={null}
+                    path={[]}
+                    rowDirection={merged.rowDirection}
+                    scaffoldBlockPxWidth={merged.scaffoldBlockPxWidth}
+                    toggleChildrenVisibility={toggleChildrenVisibility}
+                    treeId={treeId}
+                    treeIndex={draggedMinimumTreeIndex || 0}
+                    {...(merged.generateNodeProps
+                      ? merged.generateNodeProps({
+                          node: draggedNode,
+                          path: [],
+                          lowerSiblingCounts: [],
+                          treeIndex: draggedMinimumTreeIndex || 0,
+                          isSearchMatch: false,
+                          isSearchFocus: false,
+                        })
+                      : {})}
+                  />
+                </div>
+              </div>
+            </Box>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     );
   },

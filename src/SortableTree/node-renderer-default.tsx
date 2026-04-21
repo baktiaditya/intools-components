@@ -1,15 +1,15 @@
 import React from 'react';
+import { useDraggable } from '@dnd-kit/core';
 import clsx from 'clsx';
 import { isFunction, omit } from 'lodash-es';
-import { useDraggable } from '@dnd-kit/core';
 
 import { type NodeRendererDefaultProps } from './types';
 
 import { isDescendant } from './utils/tree-data-utils';
 
 const omittedProps: Array<
-  keyof Pick<NodeRendererDefaultProps, 'treeId' | 'isOver' | 'parentNode'>
-> = ['treeId', 'isOver', 'parentNode'];
+  keyof Pick<NodeRendererDefaultProps, 'treeId' | 'isOver' | 'parentNode' | 'isDragging'>
+> = ['treeId', 'isOver', 'parentNode', 'isDragging'];
 
 const NodeRendererDefault = (props: NodeRendererDefaultProps) => {
   const {
@@ -37,7 +37,7 @@ const NodeRendererDefault = (props: NodeRendererDefaultProps) => {
   const nodeSubtitle = subtitle || node.subtitle;
   const rowDirectionClass = clsx({ ['rst__rtl']: rowDirection === 'rtl' });
 
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, isDragging, listeners, setNodeRef } = useDraggable({
     id: `drag-${path.join('-')}`,
     data: { node, path, treeIndex },
     disabled: !canDrag,
@@ -56,9 +56,7 @@ const NodeRendererDefault = (props: NodeRendererDefaultProps) => {
           </div>
         );
       } else {
-        return (
-          <div className="rst__moveHandle" {...attributes} {...listeners} />
-        );
+        return <div className="rst__moveHandle" {...attributes} {...listeners} />;
       }
     }
     return null;
@@ -104,7 +102,7 @@ const NodeRendererDefault = (props: NodeRendererDefaultProps) => {
           </div>
         )}
 
-      <div className={clsx('rst__rowWrapper', rowDirectionClass)} ref={setNodeRef}>
+      <div ref={setNodeRef} className={clsx('rst__rowWrapper', rowDirectionClass)}>
         {/* Set the row preview to be used during drag and drop */}
         <div
           className={clsx(className, rowDirectionClass, 'rst__row', {
