@@ -1,0 +1,37 @@
+{
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "tsx": false,
+      "decorators": false,
+      "dynamicImport": false
+    },
+    "transform": {
+      "react": {
+        "runtime": "automatic",
+        "importSource": "@emotion/react"
+      }
+    },
+    "experimental": {
+      "plugins": [
+        [
+          "@swc/plugin-emotion",
+          {
+            "sourceMap": true,
+            "autoLabel": "dev-only",
+            "labelFormat": "[local]"
+          }
+        ],
+        [
+          "@swc/plugin-react-remove-properties",
+          {
+            "properties": ["data-testid"]
+          }
+        ]
+      ]
+    }
+  },
+  "module": {
+    "type": "nodenext"
+  }
+}

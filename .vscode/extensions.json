@@ -1,0 +1,28 @@
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "dbaeumer.vscode-eslint",
+    "dexxiez.shadcn-color-preview",
+    "drknoxy.eslint-disable-snippets",
+    "dsznajder.es7-react-js-snippets",
+    "eamodio.gitlens",
+    "eriklynd.json-tools",
+    "esbenp.prettier-vscode",
+    "formulahendry.auto-close-tag",
+    "formulahendry.auto-rename-tag",
+    "formulahendry.code-runner",
+    "godrix.svgr-preview",
+    "graphql.vscode-graphql-syntax",
+    "jakob101.relativepath",
+    "karlito40.fix-irregular-whitespace",
+    "mikestead.dotenv",
+    "naumovs.color-highlight",
+    "rubymaniac.vscode-paste-and-indent",
+    "ryu1kn.partial-diff",
+    "sidneys1.gitconfig",
+    "steoates.autoimport",
+    "wayou.vscode-todo-highlight",
+    "wmaurer.change-case",
+    "yoavbls.pretty-ts-errors"
+  ]
+}
