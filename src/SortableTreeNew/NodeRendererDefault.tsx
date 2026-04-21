@@ -3,7 +3,7 @@
 import React from 'react';
 import { css } from '@emotion/react';
 
-import type { NodeRendererProps, TreeItem } from './types';
+import type { NodeRendererProps, TreeItem, TreeNodeRenderer } from './types';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -97,24 +97,12 @@ const NodeRendererDefault = React.forwardRef<HTMLDivElement, NodeRendererDefault
 
     const nodeTitle =
       typeof node.title === 'function'
-        ? (
-            node.title as (params: {
-              node: TreeItem;
-              path: Array<string | number>;
-              treeIndex: number;
-            }) => React.ReactNode
-          )({ node, path, treeIndex })
+        ? (node.title as TreeNodeRenderer)({ node, path, treeIndex })
         : node.title ?? '(No title)';
 
     const nodeSubtitle =
       typeof node.subtitle === 'function'
-        ? (
-            node.subtitle as (params: {
-              node: TreeItem;
-              path: Array<string | number>;
-              treeIndex: number;
-            }) => React.ReactNode
-          )({ node, path, treeIndex })
+        ? (node.subtitle as TreeNodeRenderer)({ node, path, treeIndex })
         : node.subtitle;
 
     const handle = connectDragSource(

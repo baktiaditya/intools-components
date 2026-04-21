@@ -2,13 +2,19 @@ import type React from 'react';
 
 // ─── Core Data Types ──────────────────────────────────────────────────────────
 
+export type TreeNodeRenderer = (params: {
+  node: TreeItem;
+  path: Array<string | number>;
+  treeIndex: number;
+}) => React.ReactNode;
+
 export interface TreeItem {
   [key: string]: unknown;
   children?: TreeItem[];
   expanded?: boolean;
   id: string | number;
-  subtitle?: React.ReactNode;
-  title?: React.ReactNode;
+  subtitle?: React.ReactNode | TreeNodeRenderer;
+  title?: React.ReactNode | TreeNodeRenderer;
 }
 
 /** Flattened version of TreeItem used internally during DnD */

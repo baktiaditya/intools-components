@@ -45,6 +45,12 @@ export function buildTree(flattenedItems: FlattenedItem[]): TreeItem[] {
     }
   }
 
+  for (const [, node] of nodes) {
+    if (node !== root && node.children?.length === 0) {
+      node.children = undefined;
+    }
+  }
+
   return root.children ?? [];
 }
 
