@@ -240,7 +240,25 @@ export function setTreeFromFlatItems(
     return { ...flat, ...(orig ?? {}), children: [] as TreeItem[] };
   });
 
-  return buildTree(merged);
+  const newTree = buildTree(merged);
+
+  // Collapsed nodes' children are absent from flatItems (they're hidden).
+  // Restore them from the original tree and append any newly-dropped children.
+  function restoreCollapsedChildren(items: TreeItem[]) {
+    for (const item of items) {
+      const orig = origMap.get(item.id);
+      if (orig?.children?.length && item.expanded === false) {
+        const origChildIds = new Set(orig.children.map((c) => c.id));
+        const newlyAdded = (item.children ?? []).filter((c) => !origChildIds.has(c.id));
+        item.children = [...orig.children, ...newlyAdded];
+      }
+      if (item.children?.length) restoreCollapsedChildren(item.children);
+    }
+  }
+
+  restoreCollapsedChildren(newTree);
+
+  return newTree;
 }
 
 // ─── Count visible nodes (respects collapsed) ────────────────────────────────
