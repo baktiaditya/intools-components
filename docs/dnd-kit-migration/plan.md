@@ -650,7 +650,7 @@ mv src/SortableTree/react-sortable-tree.tsx src/SortableTree/react-sortable-tree
 mv src/SortableTree/SortableTree.new.tsx src/SortableTree/react-sortable-tree.tsx
 ```
 
-### 11.3 Update test file
+<!-- ### 11.3 Update test file
 
 ```bash
 mv src/SortableTree/__tests__/SortableTree.new.test.tsx src/SortableTree/__tests__/react-sortable-tree.test.tsx
@@ -659,14 +659,15 @@ mv src/SortableTree/__tests__/SortableTree.new.test.tsx src/SortableTree/__tests
 ### 11.4 Update stories file
 
 ```bash
-mv src/SortableTree/SortableTree.new.stories.tsx src/SortableTree/SortableTree.stories.tsx
-```
+mv src/SortableTree/SortableTree.new.stories.tsx src/SortableTree/SortableTree.stories.tsx -->
+
+````
 
 ### 11.5 Remove backup (after validation)
 
 ```bash
 rm src/SortableTree/react-sortable-tree.OLD.tsx
-```
+````
 
 ### 11.6 Update package.json dependencies
 

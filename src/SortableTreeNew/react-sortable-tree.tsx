@@ -5,7 +5,6 @@ import { Box } from '@chakra-ui/react';
 import {
   closestCenter,
   DndContext,
-  type DragCancelEvent,
   type DragEndEvent,
   type DragOverEvent,
   DragOverlay,
@@ -219,10 +218,9 @@ function loadLazyChildren(props: PropsWithDefault, instanceProps: InstanceProps)
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortableTreeProps>(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   (rawProps, ref) => {
     // Apply defaults
-    const props = { ...defaultProps, ...rawProps } as PropsWithDefault;
+    const props = React.useMemo(() => ({ ...defaultProps, ...rawProps }), [rawProps]);
 
     // ── State (mirrors class State) ────────────────────────────────────────
     const [dragging, setDragging] = useState(false);
@@ -267,18 +265,6 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
         });
       },
       [props.getNodeKey],
-    );
-
-    // ── canNodeHaveChildren ────────────────────────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const canNodeHaveChildrenFn = useCallback(
-      (node: TreeItem) => {
-        if (props.canNodeHaveChildren) {
-          return props.canNodeHaveChildren(node);
-        }
-        return true;
-      },
-      [props.canNodeHaveChildren],
     );
 
     // ── toggleChildrenVisibility ────────────────────────────────────────────
@@ -585,8 +571,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
         const overTreeIndex = over.data.current.treeIndex;
 
         // Use the depth and index we calculated during hover
-        const finalDepth =
-          draggedDepth !== undefined ? draggedDepth : overPath.length > 0 ? overPath.length - 1 : 0;
+        const finalDepth = draggedDepth ?? Math.max(0, overPath.length - 1);
         const finalTreeIndex =
           draggedMinimumTreeIndex !== undefined ? draggedMinimumTreeIndex : overTreeIndex;
 
@@ -605,12 +590,9 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
       [draggedDepth, draggedMinimumTreeIndex, drop, endDrag, treeId],
     );
 
-    const handleDragCancel = useCallback(
-      (_event: DragCancelEvent) => {
-        endDrag(null);
-      },
-      [endDrag],
-    );
+    const handleDragCancel = useCallback(() => {
+      endDrag(null);
+    }, [endDrag]);
 
     const sensors = useSensors(
       useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -692,7 +674,7 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
           setDragging(false);
         }
       }
-    });
+    }, []);
 
     // ── componentDidMount equivalent ─────────────────────────────────────
     useEffect(() => {
@@ -710,20 +692,21 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
     }, []);
 
     // ── onDragStateChanged callback ──────────────────────────────────────
+    const { onDragStateChanged } = props;
     useEffect(() => {
       if (isInitialMount.current) {
         isInitialMount.current = false;
         prevDragging.current = dragging;
         return;
       }
-      if (dragging !== prevDragging.current && props.onDragStateChanged) {
-        props.onDragStateChanged({
+      if (dragging !== prevDragging.current && onDragStateChanged) {
+        onDragStateChanged({
           isDragging: dragging,
           draggedNode,
         });
       }
       prevDragging.current = dragging;
-    }, [dragging, draggedNode, props.onDragStateChanged]);
+    }, [dragging, draggedNode, onDragStateChanged]);
 
     // ── renderRow ──────────────────────────────────────────────────────────
     const renderRow = useCallback(
@@ -751,7 +734,6 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
           searchFocusOffset,
         } = merged;
 
-        // TODO: Phase 3 will replace these with @dnd-kit wrapped renderers
         const TreeNodeRenderer = merged.treeNodeRenderer;
         const NodeContentRenderer = merged.nodeContentRenderer;
 
@@ -883,7 +865,6 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
     let containerStyle = style;
     let list: React.JSX.Element;
     if (rows.length === 0) {
-      // TODO: Phase 3 will wrap this with @dnd-kit droppable
       const Placeholder = TreePlaceholder;
       const PlaceholderContent =
         placeholderRenderer as React.ComponentType<PlaceholderRendererProps>;
