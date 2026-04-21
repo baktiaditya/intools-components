@@ -1,6 +1,7 @@
 import React from 'react';
 import isEqual from 'react-fast-compare';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import { Box } from '@chakra-ui/react';
 import {
   DndContext,
   type DragCancelEvent,
@@ -13,7 +14,6 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { Box } from '@chakra-ui/react';
 import clsx from 'clsx';
 import { memoize, omit } from 'lodash-es';
 
@@ -797,18 +797,14 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
     const dragData = event.active.data.current as (WrapProps & { dndType: string }) | undefined;
     if (!dragData || dragData.dndType !== this.dndType) return;
 
-    const overData = event.over?.data.current as
-      | DropTargetMeta
-      | PlaceholderTargetMeta
-      | undefined;
+    const overData = event.over?.data.current as DropTargetMeta | PlaceholderTargetMeta | undefined;
     if (!overData) return;
     if (overData.type !== 'node') return;
 
     const draggedNode = dragData.node;
     const targetDepth = this.getTargetDepth(dragData, overData, event.delta.x);
 
-    const needsRedraw =
-      overData.node !== draggedNode || targetDepth !== overData.path.length - 1;
+    const needsRedraw = overData.node !== draggedNode || targetDepth !== overData.path.length - 1;
 
     if (!needsRedraw) return;
 
@@ -824,10 +820,7 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
     const dragData = event.active.data.current as (WrapProps & { dndType: string }) | undefined;
     if (!dragData || dragData.dndType !== this.dndType) return;
 
-    const overData = event.over?.data.current as
-      | DropTargetMeta
-      | PlaceholderTargetMeta
-      | undefined;
+    const overData = event.over?.data.current as DropTargetMeta | PlaceholderTargetMeta | undefined;
 
     if (!overData) {
       this.endDrag(null);
@@ -864,6 +857,7 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
     this.drop(result);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handleDragCancel = (_event: DragCancelEvent) => {
     this.endDrag(null);
   };
@@ -1024,6 +1018,7 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
 
       list = (
         <Virtuoso
+          ref={this.listRef}
           className="rst__virtualScrollOverride"
           data={rows}
           itemContent={(index: number) => {
@@ -1056,7 +1051,6 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
             }
             return item;
           }}
-          ref={this.listRef}
           style={innerStyle}
           {...virtuosoExtra}
         />
@@ -1188,7 +1182,7 @@ const DndMonitorBridge = ({
 }) => {
   // Lazily require to avoid cyclic init ordering; useDndMonitor requires a
   // surrounding DndContext.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires, @typescript-eslint/consistent-type-imports
   const { useDndMonitor } = require('@dnd-kit/core') as typeof import('@dnd-kit/core');
   useDndMonitor({
     onDragCancel: (event) => treeRef.current?.handleDragCancel(event),
