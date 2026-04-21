@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import isEqual from 'react-fast-compare';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Box } from '@chakra-ui/react';
@@ -859,6 +859,27 @@ const ReactSortableTreeFC = React.forwardRef<ReactSortableTreeRef, ReactSortable
       });
     }
 
+    useImperativeHandle(
+      ref,
+      () => ({
+        search: () => {
+          const searchResult = performSearch(merged, instancePropsRef.current, true, true, false);
+          setSearchMatches(searchResult.searchMatches);
+          if (searchResult.searchFocusTreeIndex !== undefined) {
+            setSearchFocusTreeIndex(searchResult.searchFocusTreeIndex);
+          }
+          if (searchResult.expandedTreeData) {
+            instancePropsRef.current.ignoreOneTreeUpdate = true;
+            merged.onChange(searchResult.expandedTreeData);
+          }
+        },
+        loadLazyChildren: () => {
+          loadLazyChildren(merged, instancePropsRef.current);
+        },
+      }),
+      [merged],
+    );
+
     let containerStyle = style;
     let list: React.JSX.Element;
     if (rows.length === 0) {
@@ -1005,8 +1026,8 @@ ReactSortableTreeFC.displayName = 'ReactSortableTree';
 // ─── Public API ────────────────────────────────────────────────────────────────
 
 export type ReactSortableTreeRef = {
-  // Placeholder for imperative methods (search, loadLazyChildren)
-  // Will be implemented in Phase 7 via useImperativeHandle
+  loadLazyChildren: () => void;
+  search: () => void;
 };
 
 export const SortableTreeWithoutDndContext = ReactSortableTreeFC;
