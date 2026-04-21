@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { omit } from 'lodash-es';
 
 import { SortableTree } from './react-sortable-tree';

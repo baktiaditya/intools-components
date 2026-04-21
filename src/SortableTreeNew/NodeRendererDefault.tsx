@@ -3,7 +3,7 @@
 import React from 'react';
 import { css } from '@emotion/react';
 
-import type { NodeRendererProps, TreeItem, TreeNodeRenderer } from './types';
+import type { NodeRendererProps, TreeNodeRenderer } from './types';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
