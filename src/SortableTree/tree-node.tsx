@@ -148,7 +148,9 @@ const TreeNodeComponent = (props: Props) => {
     <div
       {...otherProps}
       ref={setNodeRef}
-      className={clsx('rst__node', rowDirectionClass)}
+      className={clsx('rst__node', rowDirectionClass, {
+        rst__nodeIsOver: isOver,
+      })}
       style={{ height: `${calculatedRowHeight}px` }}
     >
       {scaffold}
