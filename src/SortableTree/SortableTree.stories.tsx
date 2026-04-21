@@ -24,8 +24,8 @@ export const Default: Story = {
     const rest = omit(args, ['onChange', 'treeData'] satisfies Array<keyof typeof args>);
 
     const [treeData, setTreeData] = React.useState<TreeItem[]>([
-      { title: 'Chicken', children: [{ title: 'Egg' }] },
-      { title: 'Fish', children: [{ title: 'Fingerline' }] },
+      { title: 'Item A', children: [{ title: 'Item A.1' }] },
+      { title: 'Item B', children: [{ title: 'Item B.1' }] },
     ]);
 
     return (

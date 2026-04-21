@@ -7,8 +7,10 @@ import {
   type DragCancelEvent,
   type DragEndEvent,
   type DragMoveEvent,
+  DragOverlay,
   type DragStartEvent,
   PointerSensor,
+  useDndMonitor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -360,8 +362,8 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
     this.dndType = dndType || this.treeId;
 
     this.nodeContentRenderer = buildSourceWrapper(nodeContentRenderer, this.dndType);
-    this.treeNodeRenderer = buildTargetWrapper(treeNodeRenderer, this.dndType);
     this.treePlaceholderRenderer = buildPlaceholderWrapper(TreePlaceholder, this.dndType);
+    this.treeNodeRenderer = buildTargetWrapper(treeNodeRenderer, this.dndType);
   }
 
   static search(
@@ -857,7 +859,6 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
     this.drop(result);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handleDragCancel = (_event: DragCancelEvent) => {
     this.endDrag(null);
   };
@@ -1077,12 +1078,108 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
 
 export type ReactSortableTreeRef = ReactSortableTree;
 
+type DragPreviewState = {
+  node: TreeItem;
+  parentNode?: TreeItem;
+  path: number[];
+  treeIndex: number;
+} | null;
+
+/**
+ * Renders a floating copy of the currently-dragged row so there is a visible
+ * preview under the cursor.  react-dnd relied on the HTML5 drag API's native
+ * drag image for this; dnd-kit requires an explicit `DragOverlay`.
+ */
+const DragPreviewOverlay = (props: {
+  dragPreview: DragPreviewState;
+  mergedProps: PropsWithDefault;
+}) => {
+  const { dragPreview, mergedProps } = props;
+  if (!dragPreview) {
+    return <DragOverlay dropAnimation={null} />;
+  }
+
+  const { generateNodeProps, nodeContentRenderer, rowDirection, scaffoldBlockPxWidth } =
+    mergeTheme(mergedProps);
+  const NodeContentRenderer = nodeContentRenderer || NodeRendererDefault;
+
+  const callbackParams: GenerateNodePropsParamsStub = {
+    isSearchFocus: false,
+    isSearchMatch: false,
+    lowerSiblingCounts: [],
+    node: dragPreview.node,
+    path: dragPreview.path,
+    treeIndex: dragPreview.treeIndex,
+  };
+  const nodeProps = generateNodeProps ? generateNodeProps(callbackParams) : {};
+
+  const rowDirectionClass = rowDirection === 'rtl' ? 'rst__rtl' : undefined;
+
+  const identity: ConnectFunction = (element) => element;
+
+  return (
+    <DragOverlay dropAnimation={null}>
+      <Box
+        className={clsx('rst__tree', 'rst__dragPreview', rowDirectionClass)}
+        css={[
+          nodeRendererDefaultStyle,
+          placeholderRendererDefaultStyle,
+          treeNodeStyle,
+          reactSortableTreeStyle,
+        ]}
+        style={{ pointerEvents: 'none' }}
+      >
+        <NodeContentRenderer
+          // canDrag
+          // canDrop={false}
+          connectDragPreview={identity}
+          connectDragSource={identity}
+          didDrop={false}
+          isDragging={false}
+          // isOver={false}
+          // isSearchFocus={false}
+          // isSearchMatch={false}
+          node={dragPreview.node}
+          // parentNode={dragPreview.parentNode}
+          path={dragPreview.path}
+          // rowDirection={rowDirection}
+          scaffoldBlockPxWidth={scaffoldBlockPxWidth}
+          treeId=""
+          treeIndex={dragPreview.treeIndex}
+          {...nodeProps}
+        />
+      </Box>
+    </DragOverlay>
+  );
+};
+
+type GenerateNodePropsParamsStub = {
+  isSearchFocus: boolean;
+  isSearchMatch: boolean;
+  lowerSiblingCounts: number[];
+  node: TreeItem;
+  path: number[];
+  treeIndex: number;
+};
+
+const extractDragPreview = (event: DragStartEvent, dndType: string): DragPreviewState => {
+  const data = event.active.data.current as (WrapProps & { dndType: string }) | undefined;
+  if (!data || data.dndType !== dndType) return null;
+  return {
+    node: data.node,
+    parentNode: data.parentNode,
+    path: data.path,
+    treeIndex: data.treeIndex,
+  };
+};
+
 const ReactSortableTreeWithSensors = React.forwardRef<
   ReactSortableTreeRef,
   ReactSortableTreeProps & { dndContextOverride?: boolean }
 >((props, ref) => {
   const { dndContextOverride, ...rest } = props;
   const treeRef = React.useRef<ReactSortableTreeRef | null>(null);
+  const [dragPreview, setDragPreview] = React.useState<DragPreviewState>(null);
 
   React.useImperativeHandle<ReactSortableTreeRef | null, ReactSortableTreeRef | null>(
     ref,
@@ -1095,22 +1192,24 @@ const ReactSortableTreeWithSensors = React.forwardRef<
     }),
   );
 
-  const onDragStart = React.useCallback(
-    (event: DragStartEvent) => treeRef.current?.handleDragStart(event),
-    [],
-  );
+  const onDragStart = React.useCallback((event: DragStartEvent) => {
+    treeRef.current?.handleDragStart(event);
+    if (treeRef.current) {
+      setDragPreview(extractDragPreview(event, treeRef.current.dndType));
+    }
+  }, []);
   const onDragMove = React.useCallback(
     (event: DragMoveEvent) => treeRef.current?.handleDragMove(event),
     [],
   );
-  const onDragEnd = React.useCallback(
-    (event: DragEndEvent) => treeRef.current?.handleDragEnd(event),
-    [],
-  );
-  const onDragCancel = React.useCallback(
-    (event: DragCancelEvent) => treeRef.current?.handleDragCancel(event),
-    [],
-  );
+  const onDragEnd = React.useCallback((event: DragEndEvent) => {
+    treeRef.current?.handleDragEnd(event);
+    setDragPreview(null);
+  }, []);
+  const onDragCancel = React.useCallback((event: DragCancelEvent) => {
+    treeRef.current?.handleDragCancel(event);
+    setDragPreview(null);
+  }, []);
 
   const tree = (
     <ReactSortableTree
@@ -1135,6 +1234,7 @@ const ReactSortableTreeWithSensors = React.forwardRef<
       sensors={sensors}
     >
       {tree}
+      <DragPreviewOverlay dragPreview={dragPreview} mergedProps={rest as PropsWithDefault} />
     </DndContext>
   );
 });
@@ -1159,12 +1259,9 @@ export const SortableTreeWithoutDndContext = React.forwardRef<
     () => treeRef.current,
   );
 
-  // Register drag listeners against the parent DndContext via a bridging
-  // component.  We cannot call `useDndMonitor` at the class-component level,
-  // so we use a tiny inner functional component instead.
   return (
     <>
-      <DndMonitorBridge treeRef={treeRef} />
+      <DndMonitorBridge mergedProps={props as PropsWithDefault} treeRef={treeRef} />
       <ReactSortableTree
         {...(props as PropsWithDefault)}
         ref={(instance) => {
@@ -1176,21 +1273,33 @@ export const SortableTreeWithoutDndContext = React.forwardRef<
 });
 
 const DndMonitorBridge = ({
+  mergedProps,
   treeRef,
 }: {
+  mergedProps: PropsWithDefault;
   treeRef: React.MutableRefObject<ReactSortableTreeRef | null>;
 }) => {
-  // Lazily require to avoid cyclic init ordering; useDndMonitor requires a
-  // surrounding DndContext.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires, @typescript-eslint/consistent-type-imports
-  const { useDndMonitor } = require('@dnd-kit/core') as typeof import('@dnd-kit/core');
+  const [dragPreview, setDragPreview] = React.useState<DragPreviewState>(null);
+
   useDndMonitor({
-    onDragCancel: (event) => treeRef.current?.handleDragCancel(event),
-    onDragEnd: (event) => treeRef.current?.handleDragEnd(event),
+    onDragCancel: (event) => {
+      treeRef.current?.handleDragCancel(event);
+      setDragPreview(null);
+    },
+    onDragEnd: (event) => {
+      treeRef.current?.handleDragEnd(event);
+      setDragPreview(null);
+    },
     onDragMove: (event) => treeRef.current?.handleDragMove(event),
-    onDragStart: (event) => treeRef.current?.handleDragStart(event),
+    onDragStart: (event) => {
+      treeRef.current?.handleDragStart(event);
+      if (treeRef.current) {
+        setDragPreview(extractDragPreview(event, treeRef.current.dndType));
+      }
+    },
   });
-  return null;
+
+  return <DragPreviewOverlay dragPreview={dragPreview} mergedProps={mergedProps} />;
 };
 
 export const SortableTree = React.forwardRef<ReactSortableTreeRef, ReactSortableTreeProps>(

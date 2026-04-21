@@ -1,5 +1,5 @@
 // Drop-in alternative to `./SortableTree` that uses
-// `@dnd-kit/core` + `@dnd-kit/sortable` under the hood instead of `react-dnd`.
+// `@dnd-kit/core` under the hood.
 // The public API (props, renderers, exported utilities) matches
 // `./SortableTree` so the two are interchangeable.
 
