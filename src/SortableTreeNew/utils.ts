@@ -32,13 +32,21 @@ export function buildTree(flattenedItems: FlattenedItem[]): TreeItem[] {
   const nodes = new Map<string | number, TreeItem>();
   nodes.set(root.id, root);
 
+  // Pass 1: register all nodes so children that appear before their parent in
+  // the flat list (e.g. after arrayMove reorders an expanded subtree) are still
+  // found when we wire up parent-child links in pass 2.
   for (const item of flattenedItems) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { collapsed: _collapsed, depth: _depth, index: _index, parentId, ...rest } = item;
-    const node: TreeItem = { ...rest, children: [] };
-    nodes.set(item.id, node);
+    const { collapsed: _collapsed, depth: _depth, index: _index, parentId: _parentId, ...rest } =
+      item;
+    nodes.set(item.id, { ...rest, children: [] });
+  }
 
-    const parent = parentId !== null ? nodes.get(parentId) : root;
+  // Pass 2: attach each node to its parent in flat-list order (preserves the
+  // reordered sequence within each parent's children array).
+  for (const item of flattenedItems) {
+    const node = nodes.get(item.id)!;
+    const parent = item.parentId !== null ? nodes.get(item.parentId) : root;
     if (parent) {
       parent.children ??= [];
       parent.children.push(node);
