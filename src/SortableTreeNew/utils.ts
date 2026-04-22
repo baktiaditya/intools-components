@@ -36,7 +36,6 @@ export function buildTree(flattenedItems: FlattenedItem[]): TreeItem[] {
   // the flat list (e.g. after arrayMove reorders an expanded subtree) are still
   // found when we wire up parent-child links in pass 2.
   for (const item of flattenedItems) {
-    /* eslint-disable @typescript-eslint/no-unused-vars */
     const {
       collapsed: _collapsed,
       depth: _depth,
@@ -44,7 +43,6 @@ export function buildTree(flattenedItems: FlattenedItem[]): TreeItem[] {
       parentId: _parentId,
       ...rest
     } = item;
-    /* eslint-enable @typescript-eslint/no-unused-vars */
     nodes.set(item.id, { ...rest, children: [] });
   }
 

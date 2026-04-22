@@ -26,7 +26,8 @@
     "storybook": "storybook dev -p 6006",
     "test": "jest",
     "test:coverage-badges": "jest-coverage-badges",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "precommit": "yarn lint && yarn type-check"
   },
   "peerDependencies": {
     "@emotion/react": ">=11",

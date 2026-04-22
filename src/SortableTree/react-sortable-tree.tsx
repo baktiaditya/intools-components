@@ -381,7 +381,7 @@ class ReactSortableTree extends React.Component<PropsWithDefault, State> {
   }
 
   // listen to dragging
-  componentDidUpdate(prevProps: Readonly<PropsWithDefault>, prevState: Readonly<State>) {
+  componentDidUpdate(_: Readonly<PropsWithDefault>, prevState: Readonly<State>) {
     // if it is not the same then call the onDragStateChanged
     if (this.state.dragging !== prevState.dragging && this.props.onDragStateChanged) {
       this.props.onDragStateChanged({

@@ -36,7 +36,18 @@ module.exports = {
   rules: {
     // Place to specify ESLint rules. Can be used to overwrite rules specified from the extended configs
     // e.g. "@typescript-eslint/explicit-function-return-type": "off",
-    '@typescript-eslint/no-unused-vars': 'warn',
+    '@typescript-eslint/no-unused-vars': [
+      'warn',
+      {
+        args: 'all',
+        argsIgnorePattern: '^_',
+        caughtErrors: 'all',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      },
+    ],
     '@typescript-eslint/no-var-requires': 'off',
     'eslint-comments/disable-enable-pair': 'off',
     'eslint-comments/no-unlimited-disable': 'warn',
@@ -48,6 +59,7 @@ module.exports = {
     'no-duplicate-imports': 'warn',
     'no-extra-boolean-cast': 'warn',
     'no-nested-ternary': 'warn',
+    'no-unused-vars': 'off',
     'react/display-name': 'off',
     'react/jsx-boolean-value': 'warn',
     'react/jsx-sort-props': [
